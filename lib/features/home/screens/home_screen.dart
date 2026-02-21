@@ -12,14 +12,74 @@ import 'package:soulchat/core/utils/safe_nav.dart';
 import 'package:soulchat/shared/providers/soulcoin_provider.dart';
 import 'package:soulchat/shared/widgets/glass_card.dart';
 import 'package:soulchat/shared/widgets/gradient_background.dart';
-import 'package:soulchat/shared/widgets/character_avatar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class HomeScreen extends ConsumerWidget {
+/// Tüm seçenekler = null; diğerleri FirestoreService.categories ile eşleşir.
+List<String> get _kAllCategories => ['Tümü', ...FirestoreService.categories];
+
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  /// null = Tümü göster
+  String? _selectedCategory;
+  String _searchQuery = '';
+  List<Map<String, dynamic>> _allCharacters = [];
+  bool _charactersLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCharacters();
+  }
+
+  Future<void> _loadCharacters() async {
+    try {
+      final list = await FirestoreService.getCharacters().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          debugPrint('[HOME] Karakter yükleme zaman aşımı — offline veri kullanılıyor.');
+          return Future.value(FirestoreService.getCharactersOffline());
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        _allCharacters = list.isEmpty ? FirestoreService.getCharactersOffline() : list;
+        _charactersLoaded = true;
+      });
+    } catch (e) {
+      debugPrint('[HOME] Karakter yükleme hatası, offline veriye düşülüyor: $e');
+      if (!mounted) return;
+      setState(() {
+        _allCharacters = FirestoreService.getCharactersOffline();
+        _charactersLoaded = true;
+      });
+    }
+  }
+
+  List<Map<String, dynamic>> get _filteredCharacters {
+    var list = _allCharacters;
+    if (_selectedCategory != null) {
+      list = list.where((c) => c['category'] == _selectedCategory).toList();
+    }
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      list = list.where((c) {
+        final name = (c['name'] ?? '').toString().toLowerCase();
+        final desc = (c['description'] ?? c['bio'] ?? '').toString().toLowerCase();
+        final personality = (c['personality'] ?? '').toString().toLowerCase();
+        return name.contains(q) || desc.contains(q) || personality.contains(q);
+      }).toList();
+    }
+    return list;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final balance = ref.watch(soulCoinProvider);
     final offline = GoRouterState.of(context).uri.queryParameters['offline'] == '1';
     return Scaffold(
@@ -107,7 +167,7 @@ class HomeScreen extends ConsumerWidget {
                     color: Colors.amber.shade700.withOpacity(0.9),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.wifi_off, color: Colors.white, size: 20),
@@ -123,7 +183,9 @@ class HomeScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ── Arama Çubuğu ─────────────────────────────────────
                     TextField(
+                      onChanged: (v) => setState(() => _searchQuery = v.trim()),
                       decoration: InputDecoration(
                         hintText: 'Karakter Ara...',
                         prefixIcon: const Icon(Icons.search, color: Colors.white54),
@@ -138,81 +200,42 @@ class HomeScreen extends ConsumerWidget {
                       style: const TextStyle(color: Colors.white),
                     ),
                     const SizedBox(height: 12),
+
+                    // ── Kategori Filtresi ─────────────────────────────────
                     SizedBox(
                       height: 40,
-                      child: ListView(
+                      child: ListView.separated(
                         scrollDirection: Axis.horizontal,
-                        children: [
-                          _CategoryChip(label: 'Popüler', selected: true),
-                          const SizedBox(width: 8),
-                          _CategoryChip(label: 'Romantik', selected: false),
-                          const SizedBox(width: 8),
-                          _CategoryChip(label: 'Bilge', selected: false),
-                          const SizedBox(width: 8),
-                          _CategoryChip(label: 'Eğlence', selected: false),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    FadeInUp(
-                      delay: const Duration(milliseconds: 100),
-                      child: FutureBuilder<List<Map<String, dynamic>>>(
-                        future: FirestoreService.getCharacters().timeout(
-                          const Duration(seconds: 5),
-                          onTimeout: () => Future.value(FirestoreService.getCharactersOffline()),
-                        ),
-                        builder: (context, snap) {
-                          final crossCount = MediaQuery.of(context).size.width > 600 ? 4 : 2;
-                          if (!snap.hasData) {
-                            return SizedBox(
-                              height: 120,
-                              child: Center(child: CircularProgressIndicator(color: AppTheme.primaryColor)),
-                            );
-                          }
-                          final list = snap.data!.isEmpty
-                              ? FirestoreService.getCharactersOffline()
-                              : snap.data!;
-                          final itemHeight = 132.0;
-                          final rows = (list.length / crossCount).ceil();
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: Text(
-                                  'Karakterler',
-                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                ),
-                              ),
-                              SizedBox(
-                                height: rows * itemHeight + (rows - 1) * 12,
-                                child: GridView.builder(
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  padding: EdgeInsets.zero,
-                                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: crossCount,
-                                    childAspectRatio: 0.72,
-                                    crossAxisSpacing: 12,
-                                    mainAxisSpacing: 12,
-                                  ),
-                                  itemCount: list.length,
-                                  itemBuilder: (context, i) {
-                                    final item = list[i];
-                                    return _CharacterGridCard(item: item);
-                                  },
-                                ),
-                              ),
-                            ],
+                        itemCount: _kAllCategories.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (_, i) {
+                          final cat = _kAllCategories[i];
+                          final isSelected = cat == 'Tümü'
+                              ? _selectedCategory == null
+                              : _selectedCategory == cat;
+                          return _CategoryChip(
+                            label: cat,
+                            selected: isSelected,
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              setState(() {
+                                _selectedCategory = cat == 'Tümü' ? null : cat;
+                              });
+                            },
                           );
                         },
                       ),
                     ),
+                    const SizedBox(height: 16),
+
+                    // ── Karakter Grid ─────────────────────────────────────
+                    FadeInUp(
+                      delay: const Duration(milliseconds: 100),
+                      child: _buildCharacterGrid(context),
+                    ),
+
                     const SizedBox(height: 20),
-                    FadeInDown(child: _buildWelcomeCard(context, ref)),
+                    FadeInDown(child: _buildWelcomeCard(context)),
                     const SizedBox(height: 24),
                     FadeInUp(delay: const Duration(milliseconds: 150), child: _buildAllFeaturesCard(context)),
                     const SizedBox(height: 16),
@@ -239,7 +262,87 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildWelcomeCard(BuildContext context, WidgetRef ref) {
+  Widget _buildCharacterGrid(BuildContext context) {
+    final crossCount = MediaQuery.of(context).size.width > 600 ? 4 : 2;
+    if (!_charactersLoaded) {
+      return SizedBox(
+        height: 120,
+        child: Center(child: CircularProgressIndicator(color: AppTheme.primaryColor)),
+      );
+    }
+    final list = _filteredCharacters;
+    if (list.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: Text(
+            'Bu kategoride karakter yok.',
+            style: TextStyle(color: Colors.white54, fontSize: 14),
+          ),
+        ),
+      );
+    }
+    const itemHeight = 148.0;
+    final rows = (list.length / crossCount).ceil();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            children: [
+              Text(
+                'Karakterler',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${list.length}',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: rows * itemHeight + (rows - 1) * 12,
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossCount,
+              childAspectRatio: 0.68,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+            ),
+            itemCount: list.length,
+            itemBuilder: (context, i) {
+              return _CharacterGridCard(
+                item: list[i],
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  debugPrint('[HOME] Karakter seçildi: ${list[i]['name']}');
+                  context.push('/ai-companion');
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWelcomeCard(BuildContext context) {
     final balance = ref.watch(soulCoinProvider);
     return GlassCard(
       borderRadius: 20,
@@ -259,32 +362,25 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Hoş geldin!',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Hoş geldin!',
+              style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
             ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Bağlan, oyna, keşfet.',
-            style: TextStyle(color: Colors.white70, fontSize: 16),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _buildStatChip('$balance', 'SoulCoin', FontAwesomeIcons.coins),
-              const SizedBox(width: 12),
-              _buildStatChip('Seviye 15', 'İlerleme', FontAwesomeIcons.trophy),
-            ],
-          ),
-        ],
+            const SizedBox(height: 8),
+            const Text('Bağlan, oyna, keşfet.', style: TextStyle(color: Colors.white70, fontSize: 16)),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                _buildStatChip('$balance', 'SoulCoin', FontAwesomeIcons.coins),
+                const SizedBox(width: 12),
+                _buildStatChip('Seviye 15', 'İlerleme', FontAwesomeIcons.trophy),
+              ],
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 
@@ -302,21 +398,8 @@ class HomeScreen extends ConsumerWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 11,
-                ),
-              ),
+              Text(value, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
             ],
           ),
         ],
@@ -368,36 +451,37 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
           child: Row(
-          children: [
-            const Icon(Icons.apps, color: Colors.white, size: 32),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Tüm Özellikler',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  Text(
-                    '203 ekranı keşfet',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70),
-                  ),
-                ],
+            children: [
+              const Icon(Icons.apps, color: Colors.white, size: 32),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tüm Özellikler',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    Text(
+                      '203 ekranı keşfet',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
-          ],
+              const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 
-  static Future<void> _showDeepAgentThenNavigate(BuildContext context, String route, {String? featureName}) async {
+  static Future<void> _showDeepAgentThenNavigate(BuildContext context, String route,
+      {String? featureName}) async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -423,13 +507,7 @@ class HomeScreen extends ConsumerWidget {
     SafeNav.push(context, route);
   }
 
-  Widget _buildActionButton(
-    BuildContext context,
-    String label,
-    IconData icon,
-    Color color,
-    String route,
-  ) {
+  Widget _buildActionButton(BuildContext context, String label, IconData icon, Color color, String route) {
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
@@ -453,10 +531,10 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(
               label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w600, color: Colors.white),
             ),
           ],
         ),
@@ -471,10 +549,10 @@ class HomeScreen extends ConsumerWidget {
         const SizedBox(width: 8),
         Text(
           title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+          style: Theme.of(context)
+              .textTheme
+              .titleMedium
+              ?.copyWith(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         const Spacer(),
         TextButton(
@@ -509,71 +587,78 @@ class HomeScreen extends ConsumerWidget {
                 padding: EdgeInsets.zero,
                 borderColor: Colors.white24,
                 child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    CachedNetworkImage(
-                      imageUrl: AppAssets.liveStreamThumb(index),
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(color: AppTheme.darkCard, child: const Center(child: CircularProgressIndicator())),
-                      errorWidget: (_, __, ___) => Container(
-                        color: AppTheme.primaryDark,
-                        child: const Icon(Icons.videocam, color: Colors.white54, size: 48),
-                      ),
-                    ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(8)),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.circle, color: Colors.white, size: 8),
-                            SizedBox(width: 4),
-                            Text('CANLI', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                          ],
+                  borderRadius: BorderRadius.circular(16),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      CachedNetworkImage(
+                        imageUrl: AppAssets.liveStreamThumb(index),
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                            color: AppTheme.darkCard,
+                            child: const Center(child: CircularProgressIndicator())),
+                        errorWidget: (_, __, ___) => Container(
+                          color: AppTheme.primaryDark,
+                          child: const Icon(Icons.videocam, color: Colors.white54, size: 48),
                         ),
                       ),
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [Colors.transparent, Colors.black87],
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration:
+                              BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(8)),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.circle, color: Colors.white, size: 8),
+                              SizedBox(width: 4),
+                              Text('CANLI',
+                                  style: TextStyle(
+                                      color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                            ],
                           ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Yayıncı ${index + 1}',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Colors.transparent, Colors.black87],
                             ),
-                            Row(
-                              children: [
-                                const Icon(Icons.visibility, color: Colors.white70, size: 12),
-                                const SizedBox(width: 4),
-                                Text('${(index + 1) * 123}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                              ],
-                            ),
-                          ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('Yayıncı ${index + 1}',
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14)),
+                              Row(
+                                children: [
+                                  const Icon(Icons.visibility, color: Colors.white70, size: 12),
+                                  const SizedBox(width: 4),
+                                  Text('${(index + 1) * 123}',
+                                      style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
             ),
           );
         },
@@ -603,43 +688,47 @@ class HomeScreen extends ConsumerWidget {
                 padding: EdgeInsets.zero,
                 borderColor: Colors.white24,
                 child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    CachedNetworkImage(
-                      imageUrl: AppAssets.gameImage(index),
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(color: AppTheme.darkCard, child: const Center(child: CircularProgressIndicator())),
-                      errorWidget: (_, __, ___) => Container(
-                        color: AppTheme.primaryDark,
-                        child: const FaIcon(FontAwesomeIcons.gamepad, color: Colors.white54, size: 32),
-                      ),
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Colors.transparent, Colors.black87],
+                  borderRadius: BorderRadius.circular(16),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      CachedNetworkImage(
+                        imageUrl: AppAssets.gameImage(index),
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                            color: AppTheme.darkCard,
+                            child: const Center(child: CircularProgressIndicator())),
+                        errorWidget: (_, __, ___) => Container(
+                          color: AppTheme.primaryDark,
+                          child: const FaIcon(FontAwesomeIcons.gamepad,
+                              color: Colors.white54, size: 32),
                         ),
                       ),
-                    ),
-                    Positioned(
-                      bottom: 8,
-                      left: 8,
-                      right: 8,
-                      child: Text(
-                        games[index],
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.transparent, Colors.black87],
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                      Positioned(
+                        bottom: 8,
+                        left: 8,
+                        right: 8,
+                        child: Text(
+                          games[index],
+                          style: const TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
             ),
           );
         },
@@ -668,32 +757,33 @@ class HomeScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(16),
                 borderColor: Colors.white24,
                 child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: AppTheme.secondaryColor.withOpacity(0.2),
-                    child: const FaIcon(FontAwesomeIcons.microphone, color: AppTheme.secondaryColor, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Sesli Oda ${index + 1}',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                        Text(
-                          '${(index + 1) * 5} kişi konuşuyor',
-                          style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
-                        ),
-                      ],
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: AppTheme.secondaryColor.withOpacity(0.2),
+                      child: const FaIcon(FontAwesomeIcons.microphone,
+                          color: AppTheme.secondaryColor, size: 20),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('Sesli Oda ${index + 1}',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16)),
+                          Text('${(index + 1) * 5} kişi konuşuyor',
+                              style: TextStyle(
+                                  color: Colors.white.withOpacity(0.7), fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
             ),
           );
         },
@@ -702,62 +792,211 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
+// ── Alt Bileşenler ──────────────────────────────────────────────────────────
+
 class _CategoryChip extends StatelessWidget {
   final String label;
   final bool selected;
+  final VoidCallback? onTap;
 
-  const _CategoryChip({required this.label, this.selected = false});
+  const _CategoryChip({required this.label, this.selected = false, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return FilterChip(
-      label: Text(label, style: TextStyle(color: selected ? Colors.white : Colors.white70, fontSize: 13)),
-      selected: selected,
-      onSelected: (_) {},
-      backgroundColor: Colors.white.withOpacity(0.08),
-      selectedColor: AppTheme.primaryColor.withOpacity(0.8),
-      side: BorderSide(color: selected ? AppTheme.primaryColor : Colors.white24),
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppTheme.primaryColor.withOpacity(0.85)
+              : Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? AppTheme.primaryColor : Colors.white24,
+            width: 1,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppTheme.primaryColor.withOpacity(0.4),
+                    blurRadius: 8,
+                    spreadRadius: 0,
+                  )
+                ]
+              : [],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : Colors.white70,
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+      ),
     );
   }
 }
 
 class _CharacterGridCard extends StatelessWidget {
   final Map<String, dynamic> item;
+  final VoidCallback? onTap;
 
-  const _CharacterGridCard({required this.item});
+  const _CharacterGridCard({required this.item, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final name = (item['name'] ?? item['title'])?.toString() ?? 'AI';
     final desc = (item['description'] ?? item['bio'])?.toString() ?? '';
+    final personality = (item['personality'] ?? '').toString();
+    final category = (item['category'] ?? '').toString();
     final avatarUrl = (item['avatarUrl'] ?? item['image'])?.toString();
-    return GlassCard(
-      borderRadius: 12,
-      blur: 8,
-      padding: const EdgeInsets.all(10),
-      borderColor: Colors.white24,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CharacterAvatar(imageUrl: avatarUrl, size: 48),
-          const SizedBox(height: 8),
-          Text(
-            name,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
+
+    // Kategori renge göre renk al
+    final catColor = _categoryColor(category);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: GlassCard(
+        borderRadius: 16,
+        blur: 10,
+        padding: EdgeInsets.zero,
+        borderColor: catColor.withOpacity(0.4),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            children: [
+              // Arka plan görseli
+              Positioned.fill(
+                child: avatarUrl != null && avatarUrl.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: avatarUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          color: catColor.withOpacity(0.15),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: catColor,
+                            ),
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          color: catColor.withOpacity(0.15),
+                          child: Icon(Icons.smart_toy,
+                              size: 40, color: catColor.withOpacity(0.7)),
+                        ),
+                      )
+                    : Container(
+                        color: catColor.withOpacity(0.15),
+                        child: Icon(Icons.smart_toy, size: 40, color: catColor.withOpacity(0.7)),
+                      ),
+              ),
+              // Alt gradient overlay
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Colors.black.withOpacity(0.85)],
+                      stops: const [0.4, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+              // Kategori badge (üst-sol)
+              if (category.isNotEmpty)
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: catColor.withOpacity(0.85),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      category,
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              // Sohbet ikonu (üst-sağ)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.4),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.chat_bubble_outline, color: Colors.white70, size: 14),
+                ),
+              ),
+              // Alt bilgi
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (personality.isNotEmpty)
+                        Text(
+                          personality,
+                          style: TextStyle(color: catColor, fontSize: 10, fontWeight: FontWeight.w500),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      if (desc.isNotEmpty)
+                        Text(
+                          desc,
+                          style: const TextStyle(color: Colors.white60, fontSize: 10),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-          if (desc.isNotEmpty)
-            Text(
-              desc,
-              style: TextStyle(color: Colors.white70, fontSize: 10),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-            ),
-        ],
+        ),
       ),
     );
+  }
+
+  Color _categoryColor(String category) {
+    switch (category) {
+      case 'Aşk':
+        return const Color(0xFFFF6B9D);
+      case 'Bilim':
+        return const Color(0xFF4FC3F7);
+      case 'Oyun':
+        return const Color(0xFF7C4DFF);
+      case 'Eğlence':
+        return const Color(0xFFFFD740);
+      case 'Sağlık':
+        return const Color(0xFF69F0AE);
+      case 'Sanat':
+        return const Color(0xFFFF7043);
+      default:
+        return AppTheme.primaryColor;
+    }
   }
 }

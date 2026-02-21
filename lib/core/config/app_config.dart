@@ -9,6 +9,13 @@ class AppConfig {
   static const String firebaseAuthDomain = 'soulchat-pro.firebaseapp.com';
   static const String firebaseDatabaseUrl = 'https://soulchat-pro-default-rtdb.firebaseio.com';
 
+  // --- Gemini Proxy (Cloud Function – Web CORS fix) ---
+  /// Web'de Gemini API'sine doğrudan bağlantı CORS'a takılır.
+  /// Bu Cloud Function URL'si üzerinden proxy yapılır.
+  /// Deploy: firebase deploy --only functions
+  static const String geminiProxyUrl =
+      'https://us-central1-soulchat-pro.cloudfunctions.net/geminiProxy';
+
   // --- (Kullanılmıyor – AI artık sadece Gemini) RouteLLM fallback RemoteConfig için ---
   static const String routeLlmApiKey = '';
   static const String routeLlmBaseUrl = '';
