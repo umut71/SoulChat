@@ -7,7 +7,8 @@ class FreelanceMarketplaceScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Freelance Marketplace')),
-      body: Column(
+      body: SafeArea(
+        child: Column(
         children: [
           Padding(
             padding: EdgeInsets.all(16),
@@ -42,7 +43,7 @@ class FreelanceMarketplaceScreen extends StatelessWidget {
                       children: [
                         Text('Project Title ${index + 1}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                         SizedBox(height: 8),
-                        Text('Lorem ipsum dolor sit amet, consectetur adipiscing elit...'),
+                        Text('Proje açıklaması ve gereksinimler. Teklif vermek için detaylara göz atın.'),
                         SizedBox(height: 12),
                         Row(
                           children: [
@@ -61,6 +62,7 @@ class FreelanceMarketplaceScreen extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

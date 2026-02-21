@@ -32,7 +32,7 @@ class NewsScreen extends StatelessWidget {
                   children: [
                     Text('Breaking News ${index + 1}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    const Text('Lorem ipsum dolor sit amet, consectetur adipiscing elit...'),
+                    const Text('Güncel gelişmeler ve öne çıkan haberler burada. Detaylar için okuyun.'),
                     const SizedBox(height: 12),
                     Row(
                       children: [

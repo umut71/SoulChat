@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AboutScreen extends StatelessWidget {
@@ -9,7 +10,7 @@ class AboutScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('About SoulChat'),
+        title: const Text('SoulChat: AI Universe Hakkında'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -46,7 +47,7 @@ class AboutScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'SoulChat',
+              'SoulChat: AI Universe',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -172,19 +173,19 @@ class AboutScreen extends StatelessWidget {
           leading: const Icon(Icons.description),
           title: const Text('Terms of Service'),
           trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-          onTap: () {},
+          onTap: () => context.push('/terms'),
         ),
         ListTile(
           leading: const Icon(Icons.privacy_tip),
           title: const Text('Privacy Policy'),
           trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-          onTap: () {},
+          onTap: () => context.push('/privacy'),
         ),
         ListTile(
           leading: const Icon(Icons.gavel),
           title: const Text('Licenses'),
           trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-          onTap: () {},
+          onTap: () => showLicensePage(context: context),
         ),
       ],
     );

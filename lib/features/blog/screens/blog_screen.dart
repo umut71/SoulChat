@@ -34,7 +34,7 @@ class BlogScreen extends StatelessWidget {
                   children: [
                     Text('Blog Post ${index + 1}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    const Text('Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore...'),
+                    const Text('İçerik özeti ve yazıya dair kısa açıklama. Tam metin için devamını okuyun.'),
                     const SizedBox(height: 12),
                     Row(
                       children: [

@@ -6,7 +6,7 @@ class ContestsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Contests')),
+      appBar: AppBar(title: const Text('Yarışmalar')),
       body: Column(
         children: [
           SingleChildScrollView(
@@ -32,7 +32,7 @@ class ContestsScreen extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            Expanded(child: Text('Contest ${index + 1}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+                            Expanded(child: Text('Yarışma ${index + 1}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
                             Container(
                               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(20)),

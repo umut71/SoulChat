@@ -1,27 +1,86 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:soulchat/core/constants/soulcoin_costs.dart';
+import 'package:soulchat/core/services/music_studio_service.dart';
+import 'package:soulchat/core/services/system_architect_service.dart';
+import 'package:soulchat/shared/providers/soulcoin_provider.dart';
 
-class MusicStudioScreen extends StatefulWidget {
+class MusicStudioScreen extends ConsumerStatefulWidget {
   const MusicStudioScreen({super.key});
 
   @override
-  State<MusicStudioScreen> createState() => _MusicStudioScreenState();
+  ConsumerState<MusicStudioScreen> createState() => _MusicStudioScreenState();
 }
 
-class _MusicStudioScreenState extends State<MusicStudioScreen> {
+class _MusicStudioScreenState extends ConsumerState<MusicStudioScreen> {
   bool _isRecording = false;
   bool _isPlaying = false;
   double _tempo = 120;
   String _selectedInstrument = 'Piano';
+  final _themeController = TextEditingController();
+  bool _generating = false;
+  MusicStudioResult? _lastResult;
+
+  @override
+  void dispose() {
+    _themeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _generateFromTheme() async {
+    final theme = _themeController.text.trim();
+    if (theme.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lütfen bir tema veya duygu yazın.')),
+      );
+      return;
+    }
+    if (!ref.read(soulCoinProvider.notifier).canSpend(SoulCoinCosts.songGeneration)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Şarkı oluşturmak için ${SoulCoinCosts.songGeneration} SoulCoin gerekir')),
+      );
+      return;
+    }
+    final ok = await ref.read(soulCoinProvider.notifier).spend(SoulCoinCosts.songGeneration);
+    if (!ok) return;
+    setState(() => _generating = true);
+    try {
+      final result = await MusicStudioService.generateFromTheme(theme);
+      if (!mounted) return;
+      setState(() {
+        _lastResult = result;
+        _generating = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.message)),
+      );
+    } catch (e, st) {
+      ref.read(soulCoinProvider.notifier).add(SoulCoinCosts.songGeneration);
+      if (!mounted) return;
+      setState(() => _generating = false);
+      await SystemArchitectService.handleErrorAndNotify(
+        context,
+        module: 'Müzik',
+        error: e,
+        stackTrace: st?.toString(),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final balance = ref.watch(soulCoinProvider);
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F1E),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A1A2E),
-        title: const Text('Music Studio'),
+        title: const Text('Müzik Stüdyosu'),
         actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Center(child: Text('$balance SC', style: const TextStyle(fontWeight: FontWeight.bold))),
+          ),
           IconButton(
             icon: const FaIcon(FontAwesomeIcons.floppyDisk),
             onPressed: () {},
@@ -32,13 +91,65 @@ class _MusicStudioScreenState extends State<MusicStudioScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildWaveformDisplay(),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildThemeGenerateCard(),
+            _buildWaveformDisplay(),
           _buildControls(),
           _buildInstrumentPicker(),
-          Expanded(child: _buildPianoRoll()),
+          SizedBox(height: 200, child: _buildPianoRoll()),
           _buildToolbar(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThemeGenerateCard() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF16213E),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF6C63FF)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Temaya göre şarkı oluştur',
+            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _themeController,
+            decoration: InputDecoration(
+              hintText: 'Örn: Yaz akşamı, hüzünlü piyano...',
+              hintStyle: TextStyle(color: Colors.white54),
+              filled: true,
+              fillColor: const Color(0xFF1A1A2E),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            style: const TextStyle(color: Colors.white),
+            maxLines: 2,
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _generating ? null : _generateFromTheme,
+              icon: _generating ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.music_note),
+              label: Text(_generating ? 'Oluşturuluyor...' : 'Şarkı oluştur (${SoulCoinCosts.songGeneration} SC)'),
+              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF6C63FF)),
+            ),
+          ),
+          if (_lastResult != null) ...[
+            const SizedBox(height: 12),
+            Text(_lastResult!.message, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+          ],
         ],
       ),
     );
@@ -73,7 +184,7 @@ class _MusicStudioScreenState extends State<MusicStudioScreen> {
         children: [
           IconButton(
             icon: FaIcon(
-              _isRecording ? FontAwesomeIcons.stop : FontAwesomeIcons.record,
+              _isRecording ? FontAwesomeIcons.stop : FontAwesomeIcons.circleDot,
               color: _isRecording ? Colors.red : Colors.white,
             ),
             iconSize: 32,

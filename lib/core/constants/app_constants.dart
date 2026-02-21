@@ -1,6 +1,6 @@
 class AppConstants {
   // App Info
-  static const String appName = 'SoulChat';
+  static const String appName = 'SoulChat: AI Universe';
   static const String appVersion = '1.0.0';
   static const String appDescription = 'World-class social, gaming & crypto mobile application';
 

@@ -150,7 +150,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
       ('Speed', FontAwesomeIcons.gauge),
       ('Music', FontAwesomeIcons.music),
       ('Text', FontAwesomeIcons.font),
-      ('Filter', FontAwesomeIcons.wand),
+      ('Filter', FontAwesomeIcons.wandMagicSparkles),
       ('Transition', FontAwesomeIcons.shuffle),
     ];
 

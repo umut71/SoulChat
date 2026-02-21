@@ -1,22 +1,26 @@
 name: soulchat
-description: World-class social, gaming & crypto mobile application
+description: "SoulChat: AI Universe - World-class social, gaming & crypto mobile application"
 publish_to: 'none'
 version: 1.0.0+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
 
+# Web: flutter run -d chrome --web-renderer html  veya  flutter build web --web-renderer html
+# Paket uyumluluğu için Firebase/Google paketleri aynı major sürümde tutuldu.
+
 dependencies:
   flutter:
     sdk: flutter
   
-  # Firebase
-  firebase_core: ^2.24.2
-  firebase_auth: ^4.16.0
-  cloud_firestore: ^4.14.0
-  firebase_storage: ^11.6.0
-  firebase_messaging: ^14.7.9
-  firebase_analytics: ^10.8.0
+  # Firebase (Dart 3.11 web uyumu için ^4/^6)
+  firebase_core: ^4.4.0
+  firebase_auth: ^6.1.4
+  cloud_firestore: ^6.1.2
+  firebase_storage: ^13.0.6
+  firebase_messaging: ^16.1.1
+  firebase_analytics: ^12.1.2
+  firebase_remote_config: ^6.1.4
   
   # State Management
   provider: ^6.1.1
@@ -27,6 +31,7 @@ dependencies:
   go_router: ^13.0.0
   
   # UI & Design
+  google_fonts: ^6.2.1
   flutter_svg: ^2.0.9
   cached_network_image: ^3.3.1
   shimmer: ^3.0.0
@@ -36,21 +41,25 @@ dependencies:
   smooth_page_indicator: ^1.1.0
   
   # Internationalization
-  intl: ^0.19.0
+  intl: ^0.20.2
   flutter_localizations:
     sdk: flutter
   
-  # Media & Communication
-  agora_rtc_engine: ^6.3.0
-  just_audio: ^0.9.36
+  # Media & Communication (6.5.3: web platformViewRegistry dart:ui_web düzeltmesi)
+  agora_rtc_engine: 6.5.3
   image_picker: ^1.0.7
   video_player: ^2.8.2
   camera: ^0.10.5+9
   
-  # Voice Effects
-  flutter_sound: ^9.2.13
+  # Voice Effects (record_web hasPermission Dart 3.11 uyumu için ^6)
   audio_session: ^0.1.18
+  record: ^6.0.0
+  just_audio: ^0.9.36
+  path_provider: ^2.1.2
   
+  # Google Gemini (Production AI)
+  google_generative_ai: ^0.4.6
+
   # Networking
   http: ^1.2.0
   dio: ^5.4.0
@@ -69,14 +78,14 @@ dependencies:
   uuid: ^4.3.3
   timeago: ^3.6.0
   url_launcher: ^6.2.4
+  flutter_dotenv: ^5.1.0
   permission_handler: ^11.2.0
   device_info_plus: ^9.1.1
-  package_info_plus: ^5.0.1
+  package_info_plus: ^9.0.0
   connectivity_plus: ^5.0.2
   
-  # QR & Barcode
+  # QR & Barcode (qr_code_scanner kaldırıldı – Android namespace hatası; QR ekranı placeholder)
   qr_flutter: ^4.1.0
-  qr_code_scanner: ^1.0.1
   
   # Social Features
   share_plus: ^7.2.1
@@ -91,6 +100,10 @@ dependencies:
   
   # Google Sign In
   google_sign_in: ^6.2.1
+  sign_in_with_apple: ^6.0.0
+
+dependency_overrides:
+  record_linux: ^1.3.0
 
 dev_dependencies:
   flutter_test:
@@ -98,6 +111,8 @@ dev_dependencies:
   flutter_lints: ^3.0.1
   hive_generator: ^2.0.1
   build_runner: ^2.4.8
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.3.10
 
 flutter:
   uses-material-design: true
@@ -108,15 +123,35 @@ flutter:
     - assets/animations/
     - assets/sounds/
     - assets/locales/
+    - .env
   
-  fonts:
-    - family: Poppins
-      fonts:
-        - asset: assets/fonts/Poppins-Regular.ttf
-          weight: 400
-        - asset: assets/fonts/Poppins-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Poppins-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Poppins-Bold.ttf
-          weight: 700
+  # Poppins fonts: add assets/fonts/ files or use google_fonts package
+  # fonts:
+  #   - family: Poppins
+  #     fonts:
+  #       - asset: assets/fonts/Poppins-Regular.ttf
+  #         weight: 400
+  #       - asset: assets/fonts/Poppins-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/Poppins-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/Poppins-Bold.ttf
+  #         weight: 700
+
+# SoulChat: AI Universe – altın yansımalı, neon çerçeveli ikon (assets/icon.png bu stilde olmalı)
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon.png"
+  adaptive_icon_background: "#1A1A2E"
+  adaptive_icon_foreground: "assets/icon.png"
+  # iOS: Info.plist CFBundleDisplayName ile "SoulChat: AI Universe" ayarlanabilir
+
+flutter_native_splash:
+  color: "#0A0E21"
+  image: "assets/icon.png"
+  android: true
+  ios: false
+  android_12:
+    color: "#0A0E21"
+    image: "assets/icon.png"

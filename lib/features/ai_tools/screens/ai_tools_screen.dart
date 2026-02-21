@@ -1,5 +1,8 @@
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:soulchat/core/services/gemini_chat_service.dart';
 
 class AIToolsScreen extends StatelessWidget {
   const AIToolsScreen({super.key});
@@ -34,9 +37,9 @@ class AIToolsScreen extends StatelessWidget {
             context,
             'Image Generator',
             'Create AI images',
-            FontAwesomeIcons.wand,
+            FontAwesomeIcons.wandMagicSparkles,
             Colors.purple,
-            () {},
+            () => _showImageGeneratorDialog(context),
           ),
           _buildAITool(
             context,
@@ -117,6 +120,67 @@ class AIToolsScreen extends StatelessWidget {
             FontAwesomeIcons.scroll,
             Colors.lime,
             () {},
+          ),
+        ],
+      ),
+    );
+  }
+
+  static void _showImageGeneratorDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Image Generator (Gemini)'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: 'Describe the image to generate...',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () async {
+              final prompt = controller.text.trim();
+              if (prompt.isEmpty) return;
+              Navigator.pop(ctx);
+              final scaffoldContext = context;
+              showDialog(
+                context: scaffoldContext,
+                barrierDismissible: false,
+                builder: (c) => const Center(child: CircularProgressIndicator()),
+              );
+              try {
+                final url = await GeminiChatService().generateImage(prompt);
+                if (!scaffoldContext.mounted) return;
+                Navigator.pop(scaffoldContext);
+                await showDialog(
+                  context: scaffoldContext,
+                  builder: (c) => AlertDialog(
+                    title: const Text('Görsel'),
+                    content: url.startsWith('http') || url.startsWith('data:')
+                        ? CachedNetworkImage(imageUrl: url, fit: BoxFit.contain)
+                        : Text(url),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(c),
+                        child: const Text('OK'),
+                      ),
+                    ],
+                  ),
+                );
+              } catch (e) {
+                if (!scaffoldContext.mounted) return;
+                Navigator.pop(scaffoldContext);
+                ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                  SnackBar(content: Text('Error: $e')),
+                );
+              }
+            },
+            child: const Text('Generate'),
           ),
         ],
       ),

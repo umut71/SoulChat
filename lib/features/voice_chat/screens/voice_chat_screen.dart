@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:soulchat/features/voice_chat/screens/voice_room_screen.dart';
 
 class VoiceChatScreen extends StatelessWidget {
   const VoiceChatScreen({super.key});
@@ -8,12 +9,14 @@ class VoiceChatScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Voice Chat Rooms'),
+        title: const Text('Sesli Odalar'),
       ),
       body: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: 10,
         itemBuilder: (context, index) {
+          final channelId = 'soul_voice_${index + 1}';
+          final title = 'Sesli Oda ${index + 1}';
           return Card(
             margin: const EdgeInsets.only(bottom: 16),
             child: Padding(
@@ -42,17 +45,24 @@ class VoiceChatScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Voice Room ${index + 1}',
+                              title,
                               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 4),
-                            Text('${(index + 1) * 5} people talking'),
+                            Text('${(index + 1) * 5} kişi konuşuyor'),
                           ],
                         ),
                       ),
                       ElevatedButton(
-                        onPressed: () {},
-                        child: const Text('Join'),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => VoiceRoomScreen(channelId: channelId, title: title),
+                            ),
+                          );
+                        },
+                        child: const Text('Katıl'),
                       ),
                     ],
                   ),
@@ -63,9 +73,13 @@ class VoiceChatScreen extends StatelessWidget {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {},
+        onPressed: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Yeni oda oluşturulduğunda Agora kanalına host olarak katılınır')),
+          );
+        },
         icon: const FaIcon(FontAwesomeIcons.plus),
-        label: const Text('Create Room'),
+        label: const Text('Oda Oluştur'),
       ),
     );
   }

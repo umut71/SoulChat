@@ -1,6 +1,6 @@
 # SoulChat - World-Class Social, Gaming & Crypto Mobile Application
 
-![SoulChat Logo](https://img.shields.io/badge/SoulChat-v1.0.0-blue)
+![SoulChat Logo](https://img.shields.io/badge/SoulChat%3A%20AI%20Universe-1.0.0-7C4DFF)
 ![Flutter](https://img.shields.io/badge/Flutter-3.0+-02569B?logo=flutter)
 ![Firebase](https://img.shields.io/badge/Firebase-Enabled-FFCA28?logo=firebase)
 

@@ -25,23 +25,28 @@ class EmailScreen extends StatelessWidget {
         itemCount: emails.length,
         itemBuilder: (context, index) {
           final email = emails[index];
+          final from = email['from'] as String;
+          final subject = email['subject'] as String;
+          final preview = email['preview'] as String;
+          final time = email['time'] as String;
+          final unread = email['unread'] as bool;
           return ListTile(
             leading: CircleAvatar(
-              child: Text(email['from']!.substring(0, 1).toUpperCase()),
+              child: Text(from.substring(0, 1).toUpperCase()),
             ),
             title: Text(
-              email['subject']!,
+              subject,
               style: TextStyle(
-                fontWeight: email['unread'] as bool ? FontWeight.bold : FontWeight.normal,
+                fontWeight: unread ? FontWeight.bold : FontWeight.normal,
               ),
             ),
             subtitle: Text(
-              email['preview']!,
+              preview,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            trailing: Text(email['time']!),
-            tileColor: email['unread'] as bool ? Colors.blue.shade50 : null,
+            trailing: Text(time),
+            tileColor: unread ? Colors.blue.shade50 : null,
           );
         },
       ),

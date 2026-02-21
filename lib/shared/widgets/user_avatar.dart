@@ -17,17 +17,39 @@ class UserAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final effectiveUrl = imageUrl?.trim();
+    final bgColor = Theme.of(context).primaryColor;
     return Stack(
       children: [
         CircleAvatar(
           radius: radius,
-          backgroundColor: Theme.of(context).primaryColor,
-          backgroundImage: imageUrl != null
-              ? CachedNetworkImageProvider(imageUrl!)
-              : null,
-          child: imageUrl == null
+          backgroundColor: bgColor,
+          child: effectiveUrl == null || effectiveUrl.isEmpty
               ? Icon(Icons.person, size: radius, color: Colors.white)
-              : null,
+              : ClipOval(
+                  child: SizedBox(
+                    width: radius * 2,
+                    height: radius * 2,
+                    child: CachedNetworkImage(
+                      imageUrl: effectiveUrl,
+                      fit: BoxFit.cover,
+                      width: radius * 2,
+                      height: radius * 2,
+                      placeholder: (_, __) => Center(
+                        child: SizedBox(
+                          width: radius * 0.6,
+                          height: radius * 0.6,
+                          child: const CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                      errorWidget: (_, __, ___) => Icon(
+                        Icons.smart_toy,
+                        size: radius,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
         ),
         if (showOnlineIndicator)
           Positioned(

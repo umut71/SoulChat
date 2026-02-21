@@ -30,12 +30,81 @@ import 'package:soulchat/features/ai_tools/screens/ai_tools_screen.dart';
 import 'package:soulchat/features/rewards/screens/rewards_screen.dart';
 import 'package:soulchat/features/events/screens/events_screen.dart';
 import 'package:soulchat/features/groups/screens/groups_screen.dart';
+import 'package:soulchat/features/home/screens/all_features_screen.dart';
+import 'package:soulchat/features/games/screens/coin_flip_screen.dart';
+import 'package:soulchat/features/ai_companion/screens/ai_companion_screen.dart';
+import 'package:soulchat/features/feed/screens/feed_screen.dart';
+import 'package:soulchat/features/splash/screens/splash_screen.dart';
+import 'package:soulchat/features/legal/screens/terms_screen.dart';
+import 'package:soulchat/features/legal/screens/privacy_screen.dart';
 import 'package:soulchat/shared/widgets/main_navigation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:soulchat/shared/providers/auth_provider.dart';
+import 'package:soulchat/core/config/extra_routes.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
+  final refreshNotifier = ValueNotifier(0);
+  ref.listen(authStateProvider, (_, __) {
+    refreshNotifier.value++;
+  });
+
   return GoRouter(
-    initialLocation: '/home',
+    initialLocation: '/splash',
+    refreshListenable: refreshNotifier,
+    redirect: (context, state) {
+      final asyncUser = ref.read(authStateProvider);
+      final path = state.uri.path;
+      // Auth Persistence: loading sırasında da currentUser ile giriş yapmış kullanıcıyı Login'e fırlatma
+      final currentUser = FirebaseAuth.instance.currentUser;
+      return asyncUser.when(
+        data: (user) {
+          final u = user ?? currentUser;
+          if (u == null) {
+            if (path == '/splash' || path == '/login' || path == '/register' ||
+                path == '/terms' || path == '/privacy') return null;
+            return '/login';
+          }
+          if (path == '/login' || path == '/register') return '/home';
+          return null;
+        },
+        loading: () {
+          if (currentUser != null && (path == '/login' || path == '/register')) return '/home';
+          return null;
+        },
+        error: (_, __) => currentUser != null ? null : '/login',
+      );
+    },
+    errorBuilder: (context, state) => Scaffold(
+      appBar: AppBar(title: const Text('Sayfa Bulunamadı')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: Colors.orange),
+              const SizedBox(height: 16),
+              Text(
+                'Sayfa bulunamadı: ${state.uri.path}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () => context.go('/home'),
+                child: const Text('Ana Sayfaya Git'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
     routes: [
+      GoRoute(
+        path: '/splash',
+        name: 'splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
       // Auth Routes
       GoRoute(
         path: '/login',
@@ -47,10 +116,32 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'register',
         builder: (context, state) => const RegisterScreen(),
       ),
+      GoRoute(
+        path: '/terms',
+        name: 'terms',
+        builder: (context, state) => const TermsScreen(),
+      ),
+      GoRoute(
+        path: '/privacy',
+        name: 'privacy',
+        builder: (context, state) => const PrivacyScreen(),
+      ),
       
       // Main App Routes with Navigation Bar
       ShellRoute(
-        builder: (context, state, child) => MainNavigation(child: child),
+        builder: (context, state, child) => PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) {
+            if (didPop) return;
+            final path = state.uri.path;
+            if (path == '/home' || path == '/splash') {
+              // Ana sayfada geri tuşu: uygulamadan çıkma (isteğe bağlı çıkış dialog'u eklenebilir)
+              return;
+            }
+            GoRouter.of(context).pop();
+          },
+          child: MainNavigation(child: child, currentPath: state.uri.path),
+        ),
         routes: [
           GoRoute(
             path: '/home',
@@ -61,6 +152,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/chat',
             name: 'chat',
             builder: (context, state) => const ChatListScreen(),
+          ),
+          GoRoute(
+            path: '/feed',
+            name: 'feed',
+            builder: (context, state) => const FeedScreen(),
           ),
           GoRoute(
             path: '/wallet',
@@ -204,6 +300,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'support',
         builder: (context, state) => const SupportScreen(),
       ),
+      GoRoute(
+        path: '/all-features',
+        name: 'all-features',
+        builder: (context, state) => const AllFeaturesScreen(),
+      ),
+      GoRoute(
+        path: '/coin-flip',
+        name: 'coin-flip',
+        builder: (context, state) => const CoinFlipScreen(),
+      ),
+      GoRoute(
+        path: '/ai-companion',
+        name: 'ai-companion',
+        builder: (context, state) => const AiCompanionScreen(),
+      ),
+      ...extraRoutes,
     ],
   );
 });

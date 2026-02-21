@@ -23,7 +23,7 @@ class MemeGeneratorScreen extends StatelessWidget {
                 ),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.create_rounded_rectangle, size: 80, color: Colors.white),
+              child: Icon(Icons.auto_awesome, size: 80, color: Colors.white),
             ),
             SizedBox(height: 40),
             Text(

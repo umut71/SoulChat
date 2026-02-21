@@ -53,13 +53,13 @@ class LanguageLearningScreen extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              Text(lang['flag']!, style: const TextStyle(fontSize: 40)),
+                              Text(lang['flag'] as String, style: const TextStyle(fontSize: 40)),
                               const SizedBox(width: 16),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(lang['name']!, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                    Text(lang['name'] as String, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                                     Text('${lang['lessons']} lessons completed'),
                                   ],
                                 ),

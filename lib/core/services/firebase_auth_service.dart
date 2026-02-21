@@ -1,9 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 class FirebaseAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
   User? get currentUser => _auth.currentUser;
@@ -50,6 +53,32 @@ class FirebaseAuthService {
     }
   }
 
+  /// Apple Sign In (iOS/macOS/Web – Firebase ile entegre).
+  Future<UserCredential?> signInWithApple() async {
+    try {
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+      final oauthCredential = OAuthProvider('apple.com').credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
+      );
+      return await _auth.signInWithCredential(oauthCredential);
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) return null;
+      throw Exception('Apple Sign In: ${e.message}');
+    } catch (e) {
+      throw Exception('Apple Sign In failed: $e');
+    }
+  }
+
+  /// Apple Sign In destekleniyor mu (iOS 13+, macOS 10.15+).
+  static Future<bool> get isAppleSignInAvailable =>
+      SignInWithApple.isAvailable();
+
   // Phone Authentication
   Future<void> verifyPhoneNumber({
     required String phoneNumber,
@@ -81,6 +110,13 @@ class FirebaseAuthService {
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     }
+  }
+
+  /// İsim güncelle (profil düzenleyici).
+  Future<void> updateDisplayName(String name) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    await user.updateDisplayName(name.trim());
   }
 
   String _handleAuthException(FirebaseAuthException e) {

@@ -21,7 +21,7 @@ class NotesScreen extends StatelessWidget {
           child: ListTile(
             leading: CircleAvatar(
               backgroundColor: Colors.primaries[index % Colors.primaries.length].withOpacity(0.2),
-              child: FaIcon(FontAwesomeIcons.note, color: Colors.primaries[index % Colors.primaries.length]),
+              child: FaIcon(FontAwesomeIcons.noteSticky, color: Colors.primaries[index % Colors.primaries.length]),
             ),
             title: Text('Note ${index + 1}'),
             subtitle: Text('Last edited ${index + 1}h ago'),

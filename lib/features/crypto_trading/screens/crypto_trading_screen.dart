@@ -1,404 +1,232 @@
 import 'package:flutter/material.dart';
-import 'package:animate_do/animate_do.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:soulchat/core/services/coingecko_service.dart';
+import 'package:soulchat/core/services/system_architect_service.dart';
 
-class CryptoTradingScreen extends StatefulWidget {
+/// Canlı Piyasa Takip Paneli – sadece veri, işlem yok. SoulChat borsa değildir.
+final marketDataProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  return CoinGeckoService.getMarketData();
+});
+
+class CryptoTradingScreen extends ConsumerWidget {
   const CryptoTradingScreen({Key? key}) : super(key: key);
 
   @override
-  State<CryptoTradingScreen> createState() => _CryptoTradingScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(marketDataProvider);
 
-class _CryptoTradingScreenState extends State<CryptoTradingScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  
-  final List<Map<String, dynamic>> cryptos = [
-    {'name': 'Bitcoin', 'symbol': 'BTC', 'price': 45230.50, 'change': 2.5, 'icon': '₿'},
-    {'name': 'Ethereum', 'symbol': 'ETH', 'price': 3120.75, 'change': 5.2, 'icon': 'Ξ'},
-    {'name': 'SoulCoin', 'symbol': 'SC', 'price': 0.85, 'change': 15.8, 'icon': '🪙'},
-    {'name': 'Cardano', 'symbol': 'ADA', 'price': 1.25, 'change': -1.2, 'icon': '₳'},
-    {'name': 'Solana', 'symbol': 'SOL', 'price': 98.50, 'change': 8.3, 'icon': '◎'},
-    {'name': 'Polkadot', 'symbol': 'DOT', 'price': 28.75, 'change': -2.1, 'icon': '●'},
-    {'name': 'Dogecoin', 'symbol': 'DOGE', 'price': 0.15, 'change': 12.5, 'icon': 'Ð'},
-    {'name': 'Ripple', 'symbol': 'XRP', 'price': 0.75, 'change': 3.8, 'icon': '✕'},
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Crypto Trading'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Market'),
-            Tab(text: 'Portfolio'),
-            Tab(text: 'Orders'),
+        title: const Text('Kripto Radar – Canlı Piyasa Takibi'),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: async.when(
+              data: (list) {
+                if (list.isEmpty) {
+                  return _buildCryptoEmptyOrError(
+                    context,
+                    ref,
+                    CoinGeckoService.lastApiError ?? 'API verisi yok.',
+                    isError: false,
+                  );
+                }
+                final totalCap = list.fold<double>(0, (s, c) => s + ((c['market_cap'] as num?)?.toDouble() ?? 0));
+                return RefreshIndicator(
+                  onRefresh: () async => ref.invalidate(marketDataProvider),
+                  child: ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      _buildStatsHeader(context, list, totalCap),
+                      const SizedBox(height: 16),
+                      ...list.map((c) => _buildCoinRow(context, c)),
+                    ],
+                  ),
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, __) => _buildCryptoEmptyOrError(
+                context,
+                ref,
+                CoinGeckoService.lastApiError ?? e.toString(),
+                isError: true,
+              ),
+            ),
+          ),
+          _buildLegalNotice(),
+        ],
+      ),
+    );
+  }
+
+  static Widget _buildCryptoEmptyOrError(
+    BuildContext context,
+    WidgetRef ref,
+    String rawMessage, {
+    required bool isError,
+  }) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isError ? Icons.cloud_off : Icons.warning_amber_rounded,
+              size: 56,
+              color: isError ? Colors.grey : Colors.orange.shade700,
+            ),
+            const SizedBox(height: 16),
+            Text(rawMessage, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade700)),
+            const SizedBox(height: 24),
+            const Text('DeepAgent piyasa analizi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 12),
+            FutureBuilder<String>(
+              future: SystemArchitectService.deepAgentAnalyze(
+                'Güncel kripto piyasa analizi yap. BTC, ETH ve genel piyasa hakkında 2-3 cümle Türkçe özet ver.',
+              ),
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2)),
+                  );
+                }
+                final text = snap.data ?? 'Analiz şu an alınamadı.';
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.purple.shade200),
+                    ),
+                    child: Text(text, textAlign: TextAlign.center, style: TextStyle(color: Colors.purple.shade900)),
+                  ),
+                );
+              },
+            ),
+            TextButton.icon(
+              onPressed: () => ref.invalidate(marketDataProvider),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Yenile'),
+            ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {},
-          ),
-        ],
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildMarketTab(),
-          _buildPortfolioTab(),
-          _buildOrdersTab(),
-        ],
       ),
     );
   }
 
-  Widget _buildMarketTab() {
-    return Column(
-      children: [
-        _buildMarketStats(),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: cryptos.length,
-            itemBuilder: (context, index) {
-              final crypto = cryptos[index];
-              return FadeInLeft(
-                delay: Duration(milliseconds: index * 100),
-                child: _buildCryptoCard(crypto),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
+  Widget _buildStatsHeader(BuildContext context, List<Map<String, dynamic>> list, double totalCap) {
+    final btc = list.cast<Map<String, dynamic>?>().firstWhere((e) => e?['id'] == 'bitcoin', orElse: () => null);
+    final btcCap = (btc != null && btc['market_cap'] != null) ? (btc['market_cap'] as num).toDouble() : 0.0;
+    final btcDominance = totalCap > 0 ? (btcCap / totalCap * 100) : 0.0;
 
-  Widget _buildMarketStats() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [Colors.purple.shade700, Colors.blue.shade700],
         ),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatItem('Market Cap', '\$2.1T', Icons.show_chart),
-          _buildStatItem('24h Volume', '\$120B', Icons.trending_up),
-          _buildStatItem('BTC Dominance', '42.5%', FontAwesomeIcons.bitcoin),
+          _statItem('Piyasa Değeri', _formatCap(totalCap), Icons.show_chart),
+          _statItem('24s Hacim', '—', Icons.trending_up),
+          _statItem('BTC Dominans', '${btcDominance.toStringAsFixed(1)}%', Icons.percent),
         ],
       ),
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon) {
+  Widget _statItem(String label, String value, IconData icon) {
     return Column(
       children: [
-        Icon(icon, color: Colors.white, size: 24),
-        const SizedBox(height: 8),
+        Icon(icon, color: Colors.white, size: 22),
+        const SizedBox(height: 6),
         Text(
           value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
         ),
         Text(
           label,
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.8),
-            fontSize: 12,
-          ),
+          style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 11),
         ),
       ],
     );
   }
 
-  Widget _buildCryptoCard(Map<String, dynamic> crypto) {
-    final isPositive = crypto['change'] > 0;
-    
+  String _formatCap(double n) {
+    if (n >= 1e12) return '\$${(n / 1e12).toStringAsFixed(2)}T';
+    if (n >= 1e9) return '\$${(n / 1e9).toStringAsFixed(2)}B';
+    if (n >= 1e6) return '\$${(n / 1e6).toStringAsFixed(2)}M';
+    return '\$${n.toStringAsFixed(0)}';
+  }
+
+  Widget _buildCoinRow(BuildContext context, Map<String, dynamic> c) {
+    final price = (c['price'] as num?)?.toDouble() ?? 0.0;
+    final change = (c['change24h'] as num?)?.toDouble() ?? 0.0;
+    final cap = (c['market_cap'] as num?)?.toDouble() ?? 0.0;
+    final isPositive = change >= 0;
+    final symbol = c['symbol'] as String? ?? '—';
+    final name = c['name'] as String? ?? '—';
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
           backgroundColor: Colors.purple.shade100,
-          radius: 25,
-          child: Text(
-            crypto['icon'],
-            style: const TextStyle(fontSize: 24),
-          ),
+          child: Text(symbol.substring(0, symbol.length >= 2 ? 2 : 1), style: const TextStyle(fontWeight: FontWeight.bold)),
         ),
-        title: Text(
-          crypto['name'],
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Text(crypto['symbol']),
+        title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text('MCap: ${_formatCap(cap)}'),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              '\$${crypto['price'].toStringAsFixed(2)}',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+              '\$${price >= 1 ? price.toStringAsFixed(2) : price.toStringAsFixed(6)}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             const SizedBox(height: 4),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: isPositive ? Colors.green.shade100 : Colors.red.shade100,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isPositive ? Icons.arrow_upward : Icons.arrow_downward,
-                    size: 12,
-                    color: isPositive ? Colors.green : Colors.red,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${crypto['change'].abs().toStringAsFixed(1)}%',
-                    style: TextStyle(
-                      color: isPositive ? Colors.green : Colors.red,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
+              child: Text(
+                '${isPositive ? '+' : ''}${change.toStringAsFixed(2)}% 24s',
+                style: TextStyle(
+                  color: isPositive ? Colors.green.shade800 : Colors.red.shade800,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
               ),
             ),
           ],
         ),
-        onTap: () => _showTradeDialog(crypto),
       ),
     );
   }
 
-  Widget _buildPortfolioTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          FadeIn(
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    const Text(
-                      'Total Portfolio Value',
-                      style: TextStyle(fontSize: 16),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      '\$125,430.50',
-                      style: TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade100,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Text(
-                        '+\$12,340 (10.9%) Today',
-                        style: TextStyle(
-                          color: Colors.green,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          ...List.generate(5, (index) {
-            final holdings = [
-              {'crypto': 'BTC', 'amount': 2.5, 'value': 113076.25},
-              {'crypto': 'ETH', 'amount': 15.0, 'value': 46811.25},
-              {'crypto': 'SC', 'amount': 50000, 'value': 42500.0},
-              {'crypto': 'SOL', 'amount': 25.5, 'value': 2511.75},
-              {'crypto': 'ADA', 'amount': 1000, 'value': 1250.0},
-            ];
-            final holding = holdings[index];
-            
-            return FadeInUp(
-              delay: Duration(milliseconds: index * 100),
-              child: Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.blue.shade100,
-                    child: Text(holding['crypto'] as String),
-                  ),
-                  title: Text(
-                    '${holding['amount']} ${holding['crypto']}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text('\$${holding['value']}'),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.more_vert),
-                    onPressed: () {},
-                  ),
-                ),
-              ),
-            );
-          }),
-        ],
+  Widget _buildLegalNotice() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        border: Border(top: BorderSide(color: Colors.amber.shade200)),
       ),
-    );
-  }
-
-  Widget _buildOrdersTab() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: 10,
-      itemBuilder: (context, index) {
-        final orders = [
-          {'type': 'Buy', 'crypto': 'BTC', 'amount': 0.5, 'price': 45200, 'status': 'Completed'},
-          {'type': 'Sell', 'crypto': 'ETH', 'amount': 2.0, 'price': 3115, 'status': 'Pending'},
-          {'type': 'Buy', 'crypto': 'SC', 'amount': 1000, 'price': 0.85, 'status': 'Completed'},
-          {'type': 'Buy', 'crypto': 'SOL', 'amount': 5.0, 'price': 98, 'status': 'Completed'},
-          {'type': 'Sell', 'crypto': 'ADA', 'amount': 500, 'price': 1.26, 'status': 'Cancelled'},
-          {'type': 'Buy', 'crypto': 'DOT', 'amount': 10.0, 'price': 28.5, 'status': 'Completed'},
-          {'type': 'Buy', 'crypto': 'DOGE', 'amount': 5000, 'price': 0.15, 'status': 'Pending'},
-          {'type': 'Sell', 'crypto': 'XRP', 'amount': 1000, 'price': 0.76, 'status': 'Completed'},
-          {'type': 'Buy', 'crypto': 'BTC', 'amount': 0.1, 'price': 45150, 'status': 'Completed'},
-          {'type': 'Buy', 'crypto': 'ETH', 'amount': 1.0, 'price': 3120, 'status': 'Pending'},
-        ];
-        
-        if (index >= orders.length) return const SizedBox.shrink();
-        
-        final order = orders[index];
-        final isBuy = order['type'] == 'Buy';
-        
-        return FadeInRight(
-          delay: Duration(milliseconds: index * 100),
-          child: Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: isBuy ? Colors.green.shade100 : Colors.red.shade100,
-                child: Icon(
-                  isBuy ? Icons.arrow_downward : Icons.arrow_upward,
-                  color: isBuy ? Colors.green : Colors.red,
-                ),
-              ),
-              title: Text(
-                '${order['type']} ${order['amount']} ${order['crypto']}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Text('@\$${order['price']}'),
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: order['status'] == 'Completed'
-                      ? Colors.green.shade100
-                      : order['status'] == 'Pending'
-                          ? Colors.orange.shade100
-                          : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  order['status'] as String,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: order['status'] == 'Completed'
-                        ? Colors.green
-                        : order['status'] == 'Pending'
-                            ? Colors.orange
-                            : Colors.grey,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showTradeDialog(Map<String, dynamic> crypto) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Trade ${crypto['name']}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Current Price: \$${crypto['price']}'),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding: const EdgeInsets.all(16),
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Buy order placed for ${crypto['symbol']}'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    },
-                    child: const Text('BUY'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      padding: const EdgeInsets.all(16),
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Sell order placed for ${crypto['symbol']}'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    },
-                    child: const Text('SELL'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+      child: Text(
+        'Bu veriler bilgilendirme amaçlıdır, yatırım tavsiyesi değildir. SoulChat bir borsa değildir; işlem yapılamaz.',
+        style: TextStyle(fontSize: 11, color: Colors.amber.shade900),
+        textAlign: TextAlign.center,
       ),
     );
   }

@@ -80,7 +80,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   Widget _buildToolSelector() {
     final tools = [
       ('adjust', FontAwesomeIcons.sliders, 'Adjust'),
-      ('filter', FontAwesomeIcons.wand, 'Filters'),
+      ('filter', FontAwesomeIcons.wandMagicSparkles, 'Filters'),
       ('crop', FontAwesomeIcons.crop, 'Crop'),
       ('text', FontAwesomeIcons.font, 'Text'),
       ('sticker', FontAwesomeIcons.faceSmile, 'Stickers'),

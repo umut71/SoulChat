@@ -187,7 +187,7 @@
 ### Q1 2024
 - Temel mesajlaşma ve arama özellikleri
 - Canlı yayın beta
-- Oyun merkezi v1
+- Oyun merkezi
 
 ### Q2 2024
 - NFT marketplace

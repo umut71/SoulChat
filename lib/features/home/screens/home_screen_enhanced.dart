@@ -15,7 +15,7 @@ class HomeScreenEnhanced extends StatelessWidget {
             const Icon(Icons.bolt, color: Color(0xFFFFD700)),
             const SizedBox(width: 8),
             Text(
-              'SoulChat',
+              'SoulChat: AI Universe',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -175,7 +175,7 @@ class HomeScreenEnhanced extends StatelessWidget {
       children: [
         Row(
           children: [
-            const FaIcon(FontAwesomeIcons.wand, color: Color(0xFF6C63FF)),
+            FaIcon(FontAwesomeIcons.wandMagicSparkles, color: const Color(0xFF6C63FF)),
             const SizedBox(width: 8),
             Text(
               'Creative Studio',

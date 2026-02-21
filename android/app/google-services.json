@@ -1,27 +1,87 @@
 {
   "project_info": {
-    "project_number": "123456789",
-    "firebase_url": "https://soulchat-default-rtdb.firebaseio.com",
-    "project_id": "soulchat",
-    "storage_bucket": "soulchat.appspot.com"
+    "project_number": "830675250033",
+    "project_id": "soulchat-pro",
+    "storage_bucket": "soulchat-pro.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:123456789:android:xxxxxxxxxxxxx",
+        "mobilesdk_app_id": "1:830675250033:android:42ef59a874a6cbf71f64d0",
         "android_client_info": {
-          "package_name": "com.soulchat.app"
+          "package_name": "com.example.soulchat"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "830675250033-bp6m9ap294036c9ee771jfcbdibmteq0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.soulchat",
+            "certificate_hash": "e11e4a5ee3cf82b4e30498b952fcd818c0ab1ae0"
+          }
+        },
+        {
+          "client_id": "830675250033-dfhut3q5kknsktmmtru1g5qbkuvk0vfi.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyDxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          "current_key": "AIzaSyCYoClExu4mohcdNO-9iV-9Ac3yQt5M98Q"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "830675250033-dfhut3q5kknsktmmtru1g5qbkuvk0vfi.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "830675250033-j79f690u5nnjlpr01hso5qtm5tev1u8o.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.soulchat"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:830675250033:android:3a5cc7f90a6205811f64d0",
+        "android_client_info": {
+          "package_name": "com.soulchat.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "830675250033-dfhut3q5kknsktmmtru1g5qbkuvk0vfi.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCYoClExu4mohcdNO-9iV-9Ac3yQt5M98Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "830675250033-dfhut3q5kknsktmmtru1g5qbkuvk0vfi.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "830675250033-j79f690u5nnjlpr01hso5qtm5tev1u8o.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.soulchat"
+              }
+            }
+          ]
         }
       }
     }

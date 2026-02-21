@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:soulchat/core/services/google_cloud_service.dart';
 
 class MapsScreen extends StatefulWidget {
   const MapsScreen({Key? key}) : super(key: key);
@@ -13,6 +14,7 @@ class _MapsScreenState extends State<MapsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Harita: Google Cloud key ortak – WebView/SDK'da GoogleCloudService.mapsApiKey kullanın
     return Scaffold(
       body: Stack(
         children: [
